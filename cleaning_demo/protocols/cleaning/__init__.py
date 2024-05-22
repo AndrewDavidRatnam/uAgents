@@ -70,7 +70,55 @@ def in_service_region(
 
 @cleaning_proto.on_message(model=ServiceRequest, replies=ServiceResponse)
 async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
-    pass
+    provider = await Provider.filter(name=ctx.name).first()
+    availability = await Availability.get(provider=provider)
+    services = [int(service.type) for service in await provider.services]
+    markup = provider.markup 
 
+    user, _ = await User.get_or_create(name=msg.user, address=sender)
+    msg_duration_hours: float = msg.duration.total_seconds() / 3600
+    ctx.logger.info(f"Received service request from user `{user.name}`")
+
+    if (
+        set(msg.services) <= set(services)
+        and in_service_region(msg.location, availability, provider)
+        and availability.time_start <= msg.time_start
+        and availability.time_end >= msg.time_start + msg.duration
+        and availability.min_hourly_price*msg.duration < msg.max_price
+    ):
+        accept = True
+        price = markup * availability.min_hourly_price * msg_duration_hours
+        ctx.logger.info(f"I am available! Proposing price:{price}.")
+    else:
+        accept = False
+        price = 0
+        ctx.logger.info("I am not available. Declining request")
+
+    await ctx.send(sender, ServiceResponse(accept=accept, price=price))
+
+
+@cleaning_proto.on_message(model=ServiceBooking, replies=BookingResponse)
+async def handle_book_request(ctx: Context, sender:str, msg: ServiceBooking):
+    provider = await Provider.filter(name=ctx.name).first()
+    availability = await Availability.get(provider=provider)
+    services = [int(service.type) for service in await provider.services]
+
+    user = await User.get(address=sender)
+    msg_duration_hours: float = msg.duration.total_seconds() / 3600
+    ctx.logger.info(f"Received booking request from user `{user.name}`")
+
+    success = (
+        set(msg.services) <= set(services)
+        and availability.time_start <= msg.time_start
+        and availability.time_end >= msg.time_start + msg.duration
+        and msg.price <= availability.min_hourly_price*msg_duration_hours
+    )
+    
+    if success:
+        availability.time_start = msg.time_start + msg.duration
+        await availability.save()
+        ctx.logger.info("Accepted task and updated availability")
+
+        await ctx.send(sender, BookingResponse(success=success))
 
 
