@@ -21,7 +21,7 @@ from .models import Provider, Availability, User
 
 PROTOCOL_NAME = "cleaning"
 PROTOCOL_VERSION = "0.1.0"
-
+ 
 class ServiceRequest(Model):
     user: str
     location: str
@@ -29,21 +29,21 @@ class ServiceRequest(Model):
     duration: timedelta
     services: List[int]
     max_price: float
-
+ 
 class ServiceResponse(Model):
     accept: bool
     price: float
-
+ 
 class ServiceBooking(Model):
     location: str
     time_start: datetime
     duration: timedelta
     services: List[int]
     price: float
-
+ 
 class BookingResponse(Model):
     success: bool
-
+ 
 cleaning_proto = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
 
 def in_service_region(
@@ -84,7 +84,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
         and in_service_region(msg.location, availability, provider)
         and availability.time_start <= msg.time_start
         and availability.time_end >= msg.time_start + msg.duration
-        and availability.min_hourly_price*msg.duration < msg.max_price
+        and availability.min_hourly_price*msg_duration_hours < msg.max_price
     ):
         accept = True
         price = markup * availability.min_hourly_price * msg_duration_hours
