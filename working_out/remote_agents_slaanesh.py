@@ -10,9 +10,9 @@ RECIPIENT_ADDRESS=""
 
 slaanesh= Agent(
     name="slanaesh",
-    port=8001,
+    port=8000,
     seed="slaanesh secret phrase",
-    endpoint=["http://127.0.0.1:8001/submit"]
+    endpoint=["http://127.0.0.1:800/submit"]
 )
 
 print(slaanesh.address) #to get address
